@@ -15,9 +15,6 @@
  */
 
 get_header();
-$queried_object = get_queried_object();
-$category_id = $queried_object->term_id;
-$categories = get_categories();
 ?>
 
 

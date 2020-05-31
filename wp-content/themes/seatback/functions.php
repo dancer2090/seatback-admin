@@ -1,15 +1,5 @@
 <?php
-/* Hide WP version strings from scripts and styles
-* @return {string} $src
-* @filter script_loader_src
-* @filter style_loader_src
-*/
-/*
-function add_cors_http_header(){
-    header("Access-Control-Allow-Origin: *");
-}
-add_action('init','add_cors_http_header');
-*/
+
 add_action( 'template_redirect', function() {
     wp_redirect( 'https://seatback.webbuilder.in.ua/', 301 );
     exit;
@@ -31,18 +21,19 @@ if( function_exists('acf_add_options_page') ) {
 add_theme_support( 'post-thumbnails', array( 'post', 'page' ) );
 
 /////////////////////
+
 function scripts() {
 	wp_deregister_script('jquery');
 }
 add_action( 'wp_enqueue_scripts', 'scripts' );
 
 function stylese() {
-	//wp_enqueue_style( 'slick', get_template_directory_uri() . '/css/slick.css');
 
 	wp_deregister_style('font-awesome2');
 	wp_deregister_style('wp-block-library');
 }
 add_action( 'wp_enqueue_scripts', 'stylese' );
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -172,6 +163,21 @@ add_filter( 'page_row_actions', 'rd_duplicate_post_link', 10, 2 );
 
 // send
 
+function template($file, $vars=array()) {
+    if(file_exists($file)){
+        // Make variables from the array easily accessible in the view
+        extract($vars);
+        // Start collecting output in a buffer
+        ob_start();
+        require($file);
+        // Get the contents of the buffer
+        $applied_template = ob_get_contents();
+        // Flush the buffer
+        // ob_end_clean();
+        ob_get_clean();
+        return $applied_template;
+    }
+}
 
 function send_phone(WP_REST_Request $request) {
   header("Access-Control-Allow-Origin: *");
@@ -184,43 +190,50 @@ function send_phone(WP_REST_Request $request) {
   if(!empty($request['data'])){
     $subject = 'Order from Seatback';
     $from_title = 'Order from Seatback';
-    $message ='
-      <html>
-        <head>
-          <title>'.$subject.'</title>
-        </head>
-        <body>';
-    foreach($request['data'] as $key=>$value){
-      $message.='<p>'.$key.': '.$value.'</p>';
-    }
-    $message .='
-      </body>
-    </html>';
+
     $headers = "From: ".$from_title." <".$from_name.">\r\n";
     $headers .= "Content-type: text/html; charset=utf-8 \r\n";
     $mails = get_field("emails",$request['id']);
+
+    $text = '';
+    foreach($request['data'] as $key=>$value){
+      $text.='<p>'.$key.': '.$value.'</p>';
+    }
+
+    $date = date('F j Y');
+    $time = date('G:i');
+    $fb_link = get_field('fb','option');
+    $linkedin_link = get_field('lin','option');
+    $twitter_link = get_field('tw','option');
+
+    $vars = array(
+      'text'=>$text,
+      'title'=>'Order from Seatback site',
+      'date'=>$date,
+      'time'=>$time,
+      'fb_link'=>$fb_link,
+      'linkedin_link'=>$linkedin_link,
+      'twitter_link'=>$twitter_link,
+      'site_url'=>get_template_directory_uri()."/email-templates",
+    );
+
+    $template_url = __DIR__.'/email-templates/thank_you.php';
+    $message = template($template_url, $vars);
+
     if(!empty($mails)){
       foreach($mails as $email){
         mail($email['email'], $subject , $message, $headers);
       }
     }
 
-
     $check_sender = get_field("sender",$request['id']);
     if(!empty($request['data']['Email']) && $check_sender){
-      $text = get_field("email_text",$request['id']);
+      $vars['title']=get_field("subject_ec",$request['id']);
+      $vars['text'] = get_field("email_text",$request['id']);
       $subject = get_field("subject_ec",$request['id']);
       $from_title = get_field("from_ec",$request['id']);
-      $message ='
-        <html>
-          <head>
-            <title>'.$subject.'</title>
-          </head>
-          <body>';
-      $message.=$text;
-      $message .='
-        </body>
-      </html>';
+      $template_url = __DIR__.'/email-templates/thank_you.php';
+      $message = template($template_url, $vars);
       $headers = "From: ".$from_title." <".$from_name.">\r\n";
       $headers .= "Content-type: text/html; charset=utf-8 \r\n";
       mail($request['data']['Email'], $subject , $message, $headers);
@@ -234,6 +247,73 @@ add_action( 'rest_api_init', function(){
   register_rest_route( 'seatback-api', '/send-forms/(?P<id>\d+)', [
     'methods'  => 'POST',
     'callback' => 'send_phone',
+  ] );
+
+} );
+
+function send_subscribe(WP_REST_Request $request) {
+  header("Access-Control-Allow-Origin: *");
+
+  global $wpdb;
+  global $post;
+
+  $from_name = "noreply@seatback-admin.webbuilder.in.ua";
+
+  if(!empty($request['data'])){
+    $subject = 'Subscribe from Seatback';
+    $from_title = 'Subscribe from Seatback';
+
+    $headers = "From: ".$from_title." <".$from_name.">\r\n";
+    $headers .= "Content-type: text/html; charset=utf-8 \r\n";
+
+    $text = '';
+    foreach($request['data'] as $key=>$value){
+      $text.='<p>'.$key.': '.$value.'</p>';
+    }
+
+    $date = date('F j Y');
+    $time = date('G:i');
+    $fb_link = get_field('fb','option');
+    $linkedin_link = get_field('lin','option');
+    $twitter_link = get_field('tw','option');
+
+    $vars = array(
+      'text'=>$text,
+      'title'=>'Subscribe from Seatback site',
+      'date'=>$date,
+      'time'=>$time,
+      'fb_link'=>$fb_link,
+      'linkedin_link'=>$linkedin_link,
+      'twitter_link'=>$twitter_link,
+      'site_url'=>get_template_directory_uri()."/email-templates",
+    );
+
+    $template_url = __DIR__.'/email-templates/thank_you.php';
+    $message = template($template_url, $vars);
+
+    mail("yuriy3304@gmail.com", $subject , $message, $headers);
+
+
+
+    $vars['title']="Thank you for subscribe";
+    $vars['text'] = "";
+    $subject = "Seatbask Subscription";
+    $from_title = "Seatbask Subscription";
+    $template_url = __DIR__.'/email-templates/thank_you.php';
+    $message = template($template_url, $vars);
+    $headers = "From: ".$from_title." <".$from_name.">\r\n";
+    $headers .= "Content-type: text/html; charset=utf-8 \r\n";
+    mail("yuriy3304@gmail.com", $subject , $message, $headers);
+
+  }
+
+}
+
+add_action( 'rest_api_init', function(){
+
+  register_rest_route( 'seatback-api', '/send-subscribe', [
+    'methods'  => 'POST',
+    'callback' => 'send_subscribe',
   ] );
 
 } );
@@ -292,7 +372,6 @@ function forms() {
     'publicly_queryable'    => true,
     'capability_type'       => 'page',
     'show_in_rest'          => true,
-    //'rewrite'       => array('slug'=>"katalog")
   );
   register_post_type( 'forms', $args );
 

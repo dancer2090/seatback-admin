@@ -11,12 +11,7 @@
  * @since Twenty Fifteen 1.0
  */
 
-get_header(); 
-$categories = get_categories();
+get_header();
 ?>
-
-	<?while ( have_posts() ) : the_post();?>
-		<?php the_content(); ?>
-	<?endwhile;?>
 
 <?php get_footer(); ?>
